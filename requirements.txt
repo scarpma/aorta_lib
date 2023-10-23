@@ -1,0 +1,7 @@
+monai
+numpy
+pyvista
+vtk
+matplotlib
+scienceplots
+colorcet
