@@ -1,0 +1,9 @@
+__pycache__
+.*.un~
+odir*
+
+OpenFoamTransientBatch
+aorta_segmentation_v3
+
+alignedDatasetBiomarkers_new
+aorta_dataset_nii_cropped_resampled
