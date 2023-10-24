@@ -23,8 +23,8 @@ import os.path as osp
 from pathlib import Path
 import matplotlib.pyplot as plt
 import os
-import subprocess
 import argparse
+from aorta_lib import utils
 
 import pyvista as pv
 import vtk
@@ -57,17 +57,12 @@ def windowedSincSmooth(mesh, iters=20, passband=0.01):
     smoothed.Update()
     return pv.PolyData(smoothed.GetOutput())
 
-def run_command(command):
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, error = process.communicate()
-    return output.decode('utf-8'), error.decode('utf-8')
-
 def segment(net_state_dict_path, image_paths, odir=None, overwrite_odir=False):
 
     if odir:
         odir = Path(odir)
         if overwrite_odir:
-            run_command('rm -r '+str(odir))
+            utils.run_command('rm -r '+str(odir))
         print_l1(f"Creating output folder: {odir}")
         odir.mkdir(exist_ok=False)
 

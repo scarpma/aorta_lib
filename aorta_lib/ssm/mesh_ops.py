@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import pytorch3d
 import pyvista as pv
+import pymeshlab as ml
 
 from pytorch3d.structures import Meshes
 
@@ -155,7 +156,7 @@ def get_bou_idxs(model_):
                                              manifold_edges=False)
     boundary_edge_list = list(boundary_edges.split_bodies())
     nBEdges = len(boundary_edge_list)  # number of Boundary Edges
-    assert nBEdges == 5, nBEdges
+    #assert nBEdges == 5, nBEdges
 
     centers = np.empty([nBEdges, 3])
     for i in np.arange(nBEdges):
@@ -280,3 +281,45 @@ def laplacianSmooth(mesh, iters, relaxFactor):
     smoothed.SetRelaxationFactor(relaxFactor)
     smoothed.Update()
     return pv.PolyData(smoothed.GetOutput())
+
+def pv_to_ml(m):
+  m_ml = ml.Mesh(m.points, m.faces.reshape(-1,4)[:,1:])
+  # create a new MeshSet
+  ms = ml.MeshSet()
+  ms.add_mesh(m_ml, "mesh")
+  return ms
+
+def ml_to_pv(ms):
+  m_ml = ms.current_mesh()
+  face = m_ml.face_matrix()
+  tmp = np.array([3]*face.shape[0])
+  faces = np.c_[(tmp,m_ml.face_matrix())].reshape(-1)
+  m = pv.PolyData(m_ml.vertex_matrix(), faces)
+  return m
+
+def mesh_metrics(m):
+  edges = m.extract_all_edges()
+  edges = edges.compute_cell_sizes()
+  print(f"mean edge len  : {edges['Length'].mean()}")
+  return
+
+def remesh(m, target_edge_len):
+  """https://pymeshlab.readthedocs.io/en/latest/filter_list.html#meshing_isotropic_explicit_remeshing"""
+  #mesh_metrics(m)
+  ms = pv_to_ml(m)
+  ms.remeshing_isotropic_explicit_remeshing(
+    iterations = 10,
+    targetlen = ml.AbsoluteValue(target_edge_len),
+    adaptive = False,
+    selectedonly = False,
+    featuredeg = 30.,
+    swapflag = True,
+    smoothflag = True,
+    reprojectflag = True,
+  )
+  m = ml_to_pv(ms)
+  #mesh_metrics(m)
+  return m
+
+
+

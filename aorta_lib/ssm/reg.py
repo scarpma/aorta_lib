@@ -180,9 +180,9 @@ def reg_multiscale(
         trg_mesh_path,
         decimate_values,
         initial_icp)
-    trg_bou_idxs = []
-    for ii in range(len(src_meshes_pv)):
-        trg_bou_idxs.append(mesh_ops.get_bou_idxs(trg_meshes_pv[ii]))
+    #trg_bou_idxs = []
+    #for ii in range(len(src_meshes_pv)):
+    #    trg_bou_idxs.append(mesh_ops.get_bou_idxs(trg_meshes_pv[ii]))
 
     odir_iterations = osp.join(odir, src_name+'_to_'+trg_name)
     os.makedirs(odir_iterations, exist_ok=True)
@@ -216,7 +216,8 @@ def reg_multiscale(
         means[i] = mean
         stds[i] = std
 
-        lossObj = loss_lib.Loss_fn_bou_match(trg_cloud, src_bou_idxs, trg_bou_idxs[i], wsa=wsa, wio=wio)
+        #lossObj = loss_lib.Loss_fn_bou_match(trg_cloud, src_bou_idxs, trg_bou_idxs[i], wsa=wsa, wio=wio)
+        lossObj = loss_lib.Loss_fn_bou_match_nonSym(trg_cloud)
 
         print("NUMBER OF VERTICES: ", src_cloud.points_packed().shape[0])
         new_verts, loss = register(
@@ -282,7 +283,7 @@ if __name__ == '__main__':
         dest='trgPath',
     )
     parser.add_argument(
-        '-o', '--outputDir',
+        '-o', '--odir',
         type=str,
         required=False,
         default='.',
