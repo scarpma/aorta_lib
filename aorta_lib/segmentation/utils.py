@@ -28,16 +28,28 @@ pad = 10
 length = np.array([200]*2)
 img_dims = np.array([200]*2)
 
-def read_CT(path, sign=-1):
+def read_CT(path):
+    # loads a nifti image in LPS coordinate system
     reader = NIFTIReader(path)
     import nibabel
     nii = nibabel.load(path)
-    origin_ = nii.affine[:-1,-1]
-    origin = origin_
-    origin[:-1] = sign*origin[:-1]
+    origin = nii.affine[:3, -1]
+    spacing = nii.affine[:3, :3].diagonal()
     mesh = reader.read()
-    mesh.origin = origin
+    mesh.SetOrigin(origin * np.sign(spacing))
     return mesh
+
+
+#def read_CT(path, sign=-1):
+#    reader = NIFTIReader(path)
+#    import nibabel
+#    nii = nibabel.load(path)
+#    origin_ = nii.affine[:-1,-1]
+#    origin = origin_
+#    origin[:-1] = sign*origin[:-1]
+#    mesh = reader.read()
+#    mesh.origin = origin
+#    return mesh
 
 def create_roi(origin,n,u,r,length):
     # create cube to delineate region of interest (roi)
@@ -174,6 +186,7 @@ def plot_label_with_distance(pred_surf, label_surf=None):
     camera_center = pred_surf.center
     camera_center[-1] = pred_surf.points[:,-1].max() - shift_from_sa
     pl = pv.Plotter(window_size=(np.array([350,600])*scale).astype(int), off_screen=True)
+    #pl = pv.Plotter(window_size=(np.array([350,600])*scale).astype(int))
     pl.reset_camera()
     pv.set_plot_theme('document')
     if label_surf is None:
@@ -186,12 +199,12 @@ def plot_label_with_distance(pred_surf, label_surf=None):
     camera_direction = camera_direction / np.linalg.norm(camera_direction)
     pl.camera.position = camera_center - camera_direction * camera_dist
     pl.camera.focal_point = camera_center + camera_direction * camera_dist
-    #pl.show(jupyter_backend='static')
+    #pl.show()
     #pl.close()
     return pl.screenshot(None, return_img=True)
 
 
-def plot_seg(image_path, pred, pred_surf, label=None, label_surf=None):
+def plot_seg(image_path, pred_surf, label_surf=None):
     smoothing_factor = 0.5
     
     ct = read_CT(image_path)

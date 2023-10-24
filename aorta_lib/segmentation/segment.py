@@ -33,8 +33,8 @@ import data
 import utils
 
 def marching_cubes(array):
-    array[:] = array[::-1]
-    array[:,:] = array[:,::-1]
+    #array[:] = array[::-1]
+    #array[:,:] = array[:,::-1]
     array = array.squeeze()
     assert len(array.shape)==3
     a = pv.wrap(array)
@@ -73,6 +73,7 @@ def segment(net_state_dict_path, image_paths, odir=None, overwrite_odir=False):
 
     net_state_dict_path = Path(net_state_dict_path).expanduser().absolute()
 
+    pixdim = [1,1,1] # mm
     vol_size = (192,192,192)
     smoothing_factor = 0.5 # between 0 and 1
     device = torch.device("cuda")
@@ -85,17 +86,18 @@ def segment(net_state_dict_path, image_paths, odir=None, overwrite_odir=False):
         name = pp.stem.split('.')[0]
         datalist.append(dict(name=name,image=p))
         
-    print(datalist)
+    for ii, sample in enumerate(datalist):
+        print(f"{ii:4d}: {sample['name']}")
     
     # # Transforms
     keys = ['image']
     monai.utils.misc.set_determinism(seed=218341029)
-    
+
     trans = monai.transforms.Compose([
         monai.transforms.LoadImaged(keys),
         monai.transforms.EnsureChannelFirstd(keys),
         monai.transforms.Orientationd(keys, axcodes='RAS'),
-        #monai.transforms.Spacingd(keys, pixdim=pixdim, mode=['bilinear', 'nearest']),
+        monai.transforms.Spacingd(keys, pixdim=pixdim, mode=['bilinear', 'nearest'] if len(keys)==2 else ['bilinear']),
         monai.transforms.ScaleIntensityRanged(
             'image',
             a_min=-350,
@@ -142,9 +144,9 @@ def segment(net_state_dict_path, image_paths, odir=None, overwrite_odir=False):
     inferer = monai.inferers.SlidingWindowInferer(
         roi_size=vol_size,
         sw_batch_size=16,
-        overlap=0.25,
-        mode='constant',
-        #mode='gaussian',
+        overlap=0.10,
+        #mode='constant',
+        mode='gaussian',
         sw_device=device,
         device='cpu',
         progress=True,
@@ -172,10 +174,10 @@ def segment(net_state_dict_path, image_paths, odir=None, overwrite_odir=False):
         y_pred_np = y_pred[0].detach().cpu().numpy()
         y_pred_np = monai.transforms.get_largest_connected_component_mask(y_pred_np)
     
-        surface = marching_cubes(y_pred_np).points_to_double()
+        surface = marching_cubes(y_pred_np)
         surface.clear_data()
-        surface = surface.transform(data['image_meta_dict']['affine'].numpy())
-        surface.points[:,:-1] = -surface.points[:,:-1]
+        surface = surface.transform(data['image'].meta['affine'].numpy())
+        surface.points[:,:-1] = -surface.points[:,:-1] # LPS. Comment this to save in RAS (i think)
         surface = windowedSincSmooth(surface, iters=20, passband=10**(-4.*smoothing_factor))
 
         predictions.append(dict(name=datalist[ii]['name'], pred=y_pred_np,surface=surface))
@@ -190,11 +192,11 @@ def segment(net_state_dict_path, image_paths, odir=None, overwrite_odir=False):
                 output_dtype=np.float32,
                 separate_folder=False,
             )
-            name = osp.basename(data['image_meta_dict']['filename_or_obj']).split('.')[0]
-            saver(y_pred, data['image_meta_dict'])
+            name = osp.basename(data['image'].meta['filename_or_obj']).split('.')[0]
+            saver(y_pred, data['image'].meta)
             surface.save(osp.join(odir, f'{name}_seg.vtp'))
             os.symlink(datalist[ii]['image'], osp.join(odir, osp.split(datalist[ii]['image'])[-1]))
-            fig = utils.plot_seg(datalist[ii]['image'], y_pred_np, surface, label=None, label_surf=None)
+            fig = utils.plot_seg(datalist[ii]['image'], surface)
             fig.savefig(osp.join(odir, f'{name}.pdf'), dpi=300)
 
     
@@ -207,31 +209,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Segment a CT scan using a neural network')
     parser.add_argument('image_paths', type=str, nargs='+',
                         help='paths of the images to segment')
-    parser.add_argument('--state_dict_path', type=str, nargs=1,
+    parser.add_argument('--state_dict_path', type=str,
                         default='~/Martino/aorta_segmentation_v3/MMAR_TRIAL/logs_kfold0_slidingWindow/val__checkpoint_key_metric=0.9626.pt',
                         help='path of the state dictionary of the neural network to use')
-    #parser.add_argument('--odir', type=str, default="segmentations_odir",
-    #                    help='path of the directory where output files will be saved')
+    parser.add_argument('--odir', type=str, default=None,
+                        help='directory to save results')
+    parser.add_argument('--overwrite',action='store_true',
+                        help='wether to overwrite odir or not')
     args = parser.parse_args()
 
 
     segment(
         net_state_dict_path=args.state_dict_path,
         image_paths=args.image_paths,
-        #image_paths=[
-        #    '~/Martino/aorta_lib/examples/aorta_dataset_nii_cropped_resampled/imagesTr/A2_trans.nii.gz',
-        #    '~/Martino/aorta_lib/examples/aorta_dataset_nii_cropped_resampled/imagesTr/A3_trans.nii.gz',
-        #    ],
-        odir='odir3',
-        overwrite_odir=True,
+        odir=args.odir,
+        overwrite_odir=args.overwrite,
     )
-
-
-
-
-
-
-
-
 
 
