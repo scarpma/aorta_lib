@@ -17,9 +17,14 @@ import sklearn.neighbors as nb
 from aorta_lib.ssm import generateShape as gs
 from aorta_lib.hemodyn import data
 
-SSM, _ = gs.load_SSM("../ssm/SSM_47shapes_relaxed_corrected.npy")
+
+SSM, _ = gs.load_SSM("/home/bcl/Martino/aorta_lib/aorta_lib/ssm/SSM_47shapes_relaxed_corrected.npy")
 ssm_std = np.sqrt(SSM['model'].explained_variance_)
 k = 5 # k nearest neigbours
+hemo_pca_ncomps = 250
+ssm_tot_pca_ncomps = 47
+ssm_pca_ncomps = 25
+
 
 def train_ROM(hemo_dim, X, Y, array_name, plot=False):
   reg = sklearn.gaussian_process.GaussianProcessRegressor(
@@ -158,9 +163,6 @@ def distance_shapes(x, y):
 
 if __name__ == "__main__":
 
-  hemo_pca_ncomps = 250
-  ssm_tot_pca_ncomps = 47
-  ssm_pca_ncomps = 25
   #array_names = ['tawss', 'ecap', 'osi', 'tap', 'p_sis', 'wss_sis']
   array_names = ['tawss', 'osi', 'wss_sis']
   # array_names = ['tawss']
