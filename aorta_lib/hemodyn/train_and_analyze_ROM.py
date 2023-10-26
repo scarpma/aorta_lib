@@ -1,6 +1,7 @@
 import numpy as np
 import pyvista as pv
 import matplotlib.pyplot as plt
+import pandas as pd
 
 import json
 import os
@@ -55,6 +56,7 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
   score_recon_trn = 1-u/v
   rmse_trn = np.sqrt(((Y_rom - Y)**2).mean())
   abse_trn = (np.abs(Y_rom - Y)).mean()
+  resume = None
 
   if X_test is None:
     score_pca_test = 0.
@@ -69,18 +71,36 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
     v = ( (Y_test - Y_test.mean())**2 ).sum()
     score_pca_test = reg.score(X_test, Y_pca)
     score_recon_test = 1-u/v
-    rmse_test = np.sqrt(((Y_rom - Y_test)**2).mean())
-    abse_test = (np.abs(Y_rom - Y_test)).mean()
+    rmse_test_all = np.sqrt((Y_rom - Y_test)**2).mean(-1)
+    rmse_test = rmse_test_all.mean()
+    abse_test_all = np.abs(Y_rom - Y_test).mean(-1)
+    abse_test = abse_test_all.mean()
+
     if model_odir is not None:
-      dist, ind = build_knn(X_trn, X_test, distance_shapes, k=k)
-      dist = dist.mean(-1)
+      dist1, ind = build_knn(X_trn, X_test, distance_shapes, k=1)
+      dist2, ind = build_knn(X_trn, X_test, distance_shapes, k=2)
+      dist3, ind = build_knn(X_trn, X_test, distance_shapes, k=3)
+      dist4, ind = build_knn(X_trn, X_test, distance_shapes, k=4)
+      dist5, ind = build_knn(X_trn, X_test, distance_shapes, k=5)
+      dist1 = dist1.mean(-1)
+      dist2 = dist2.mean(-1)
+      dist3 = dist3.mean(-1)
+      dist4 = dist4.mean(-1)
+      dist5 = dist5.mean(-1)
       plt.title(f"scatter plot for {array_name}, fold {fold}")
-      plt.xlabel("dist from nn in training")
+      plt.xlabel("dist5 from nn in training")
       plt.ylabel(f"abs error for {array_name}")
-      plt.scatter(dist, np.abs(Y_rom - Y_test).mean(axis=1), s=0.6)
+      plt.scatter(dist5, np.abs(Y_rom - Y_test).mean(axis=1), s=0.6)
       plt.savefig(osp.join(model_odir,f"dist_vs_abse_{array_name}_fold_{fold}_k_{k}.png"), dpi=150)
       plt.close()
-      np.savetxt(osp.join(model_odir,f"dist_vs_abse_{array_name}_fold_{fold}_k_{k}.txt"), np.c_[dist,np.abs(Y_rom - Y_test).mean(axis=1)])
+      np.savetxt(osp.join(model_odir,f"dist_vs_abse_{array_name}_fold_{fold}_k_{k}.txt"), np.c_[dist5,np.abs(Y_rom - Y_test).mean(axis=1)])
+
+      resume = dict(omega=X_test, rmse=rmse_test_all,
+                    abse=abse_test_all, dist1=dist1,
+                    dist2=dist2, dist3=dist3,
+                    dist4=dist4,dist5=dist5)
+
+
     #if plot:
     #  dist, ind = build_knn(X_trn, X_test, distance_shapes, k=k)
     #  dist = dist.mean(-1)
@@ -93,20 +113,21 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
   print("    {:25s} {:.4f} | {:.4f}".format("RMSE  Reconstructed:",        rmse_trn,        rmse_test))
   print("    {:25s} {:.4f} | {:.4f}".format("ABSE  Reconstructed:",        abse_trn,        abse_test))
 
+  return resume
 
-def __create_train_test_sets__(dataset, fold, nfolds):
-  # creates only the shape coefficients for statistical analysis
-  if fold is None:
-    X = np.array([s["shape_coeff"] for s in dataset])
-    return X, None
 
-  folds = list(range(nfolds))
-  train_folds = [f for f in folds if f != fold]
-  test_folds = [f for f in folds if f == fold]
-  X_trn = np.array([s["shape_coeff"] for s in dataset if s["fold"] in train_folds])
-  X_test = np.array([s["shape_coeff"] for s in dataset if s["fold"] in test_folds])
-  return X_trn, X_test
-
+## def __create_train_test_sets__(dataset, fold, nfolds):
+##   # creates only the shape coefficients for statistical analysis
+##   if fold is None:
+##     X = np.array([s["shape_coeff"] for s in dataset])
+##     return X, None
+## 
+##   folds = list(range(nfolds))
+##   train_folds = [f for f in folds if f != fold]
+##   test_folds = [f for f in folds if f == fold]
+##   X_trn = np.array([s["shape_coeff"] for s in dataset if s["fold"] in train_folds])
+##   X_test = np.array([s["shape_coeff"] for s in dataset if s["fold"] in test_folds])
+##   return X_trn, X_test
 
 def create_train_test_sets(dataset, fold, nfolds):
   if fold is None:
@@ -140,15 +161,17 @@ if __name__ == "__main__":
   hemo_pca_ncomps = 250
   ssm_tot_pca_ncomps = 47
   ssm_pca_ncomps = 25
-  array_names = ['tawss', 'ecap', 'osi', 'tap', 'p_sis', 'wss_sis']
+  #array_names = ['tawss', 'ecap', 'osi', 'tap', 'p_sis', 'wss_sis']
+  array_names = ['tawss', 'osi', 'wss_sis']
+  # array_names = ['tawss']
   dataRoot = '../../examples/alignedDatasetBiomarkers_new/'
   dataset_path = "datasetROM_new.json"
-  model_odir = "odir"
+  model_odir = "odir2"
   if not osp.isdir(model_odir):
     os.makedirs(model_odir)
   else:
     print('odir already exists. exiting')
-    exit
+    sys.exit(1)
 
   # read dataset
   datadict = data.read_datalist(dataset_path, folds=range(5), dataRoot=dataRoot, keys_to_edit=["model"])
@@ -169,8 +192,9 @@ if __name__ == "__main__":
 
   interpolatorDict = {}
   pcaDict = {}
+  df_results_all_folds = pd.DataFrame()
 
-  for array_name in ['tawss', 'osi', 'wss_sis',]:# 'tap', 'p_sis']:
+  for array_name in array_names:
     print('array name: ', array_name)
     nfolds = 5 #TODO read nfolds from datasetROM.json
 
@@ -180,9 +204,23 @@ if __name__ == "__main__":
       print("  fold: ", fold)
       X_trn, Y_trn, X_test, Y_test = create_train_test_sets(dataset, fold, nfolds)
       reg, pca = train_ROM(hemo_pca_ncomps, X_trn, Y_trn, array_name)
-      evaluate_ROM(reg, pca, X_trn, Y_trn, X_test, Y_test, array_name, model_odir=model_odir)
       regs.append(reg)
       pcas.append(pca)
+      resume = evaluate_ROM(reg, pca, X_trn, Y_trn, X_test, Y_test, array_name, model_odir=model_odir)
+      
+      # save statistics about validation set during this training
+      df_fold = pd.DataFrame(dataset.copy())
+      col_to_drop = [n for n in array_names+['shape_coeff'] if n in df_fold]
+      df_fold = df_fold.drop(col_to_drop, axis=1)
+      df_fold = df_fold[df_fold['fold']==fold].reset_index(drop=True)
+      df_fold['abse'] = resume['abse']
+      df_fold['rmse'] = resume['rmse']
+      for i in range(1,6): df_fold[f'dist{i}'] = resume[f'dist{i}']
+      df_fold['array_name'] = array_name
+      df_omega = pd.DataFrame(resume['omega'])
+      df_omega.columns = [f"omega_{i+1}" for i in range(resume['omega'].shape[1])]
+      df_fold = pd.concat([df_fold,df_omega], axis=1)
+      df_results_all_folds = pd.concat([df_results_all_folds, df_fold], ignore_index=True)
 
     print()
     print("==fold: ", "tot")
@@ -198,6 +236,7 @@ if __name__ == "__main__":
   # save models
   totDict = {'reg':interpolatorDict, 'pca':pcaDict}
   np.save(osp.join(model_odir, 'hemo_interpolators_gaus_reg_pca_new.npy'), totDict)
+  df_results_all_folds.to_excel(osp.join(model_odir, 'df_results_all_folds.xlsx'), float_format="%.5e")
 
 
 

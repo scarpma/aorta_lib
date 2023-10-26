@@ -10,3 +10,5 @@ pyacvd
 #pip install --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py38_cu117_pyt201/download.html
 trimesh
 pymeshlab
+openpyxl
+seaborn
