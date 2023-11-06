@@ -61,6 +61,7 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
   score_recon_trn = 1-u/v
   rmse_trn = np.sqrt(((Y_rom - Y)**2).mean())
   abse_trn = (np.abs(Y_rom - Y)).mean()
+  nmae_trn = ((np.abs(Y_rom - Y)).T/(Y.max(-1)-Y.min(-1))).T.mean()
   resume = None
 
   if X_test is None:
@@ -68,6 +69,7 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
     score_recon_test = 0.
     rmse_test = 0.
     abse_test = 0.
+    nmae_test = 0.
   else:
     Y_pca = pca.transform(Y_test)
     Y_pca_pred = reg.predict(X_test)
@@ -80,6 +82,8 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
     rmse_test = rmse_test_all.mean()
     abse_test_all = np.abs(Y_rom - Y_test).mean(-1)
     abse_test = abse_test_all.mean()
+    nmae_test_all = ((np.abs(Y_rom - Y_test)).T/(Y_test.max(-1)-Y_test.min(-1))).T.mean(-1)
+    nmae_test = nmae_test_all.mean()
 
     if model_odir is not None:
       dist1, ind = build_knn(X_trn, X_test, distance_shapes, k=1)
@@ -95,13 +99,21 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
       plt.title(f"scatter plot for {array_name}, fold {fold}")
       plt.xlabel("dist5 from nn in training")
       plt.ylabel(f"abs error for {array_name}")
-      plt.scatter(dist5, np.abs(Y_rom - Y_test).mean(axis=1), s=0.6)
+      plt.scatter(dist5, abse_test_all, s=0.6)
       plt.savefig(osp.join(model_odir,f"dist_vs_abse_{array_name}_fold_{fold}_k_{k}.png"), dpi=150)
       plt.close()
-      np.savetxt(osp.join(model_odir,f"dist_vs_abse_{array_name}_fold_{fold}_k_{k}.txt"), np.c_[dist5,np.abs(Y_rom - Y_test).mean(axis=1)])
+      np.savetxt(osp.join(model_odir,f"dist_vs_abse_{array_name}_fold_{fold}_k_{k}.txt"), np.c_[dist5,abse_test_all])
+
+      plt.title(f"scatter plot for {array_name}, fold {fold}")
+      plt.xlabel("dist5 from nn in training")
+      plt.ylabel(f"nmae error for {array_name}")
+      plt.scatter(dist5, nmae_test_all, s=0.6)
+      plt.savefig(osp.join(model_odir,f"dist_vs_nmae_{array_name}_fold_{fold}_k_{k}.png"), dpi=150)
+      plt.close()
+      np.savetxt(osp.join(model_odir,f"dist_vs_nmae_{array_name}_fold_{fold}_k_{k}.txt"), np.c_[dist5,nmae_test_all])
 
       resume = dict(omega=X_test, rmse=rmse_test_all,
-                    abse=abse_test_all, dist1=dist1,
+                    abse=abse_test_all, nmae=nmae_test_all, dist1=dist1,
                     dist2=dist2, dist3=dist3,
                     dist4=dist4,dist5=dist5)
 
@@ -117,6 +129,7 @@ def evaluate_ROM(reg, pca, X, Y, X_test, Y_test, array_name, model_odir=None):
   print("    {:25s} {:.4f} | {:.4f}".format("score Reconstructed:", score_recon_trn, score_recon_test))
   print("    {:25s} {:.4f} | {:.4f}".format("RMSE  Reconstructed:",        rmse_trn,        rmse_test))
   print("    {:25s} {:.4f} | {:.4f}".format("ABSE  Reconstructed:",        abse_trn,        abse_test))
+  print("    {:25s} {:.4f} | {:.4f}".format("NMAE  Reconstructed:",        nmae_trn,        nmae_test))
 
   return resume
 
@@ -167,8 +180,8 @@ if __name__ == "__main__":
   array_names = ['tawss', 'osi', 'wss_sis']
   # array_names = ['tawss']
   dataRoot = '../../examples/alignedDatasetBiomarkers_new/'
-  dataset_path = "datasetROM_new.json"
-  model_odir = "odir2"
+  dataset_path = "datasetROM_new_noLATIN1.json"
+  model_odir = "odir_noLATIN1"
   if not osp.isdir(model_odir):
     os.makedirs(model_odir)
   else:
@@ -217,6 +230,7 @@ if __name__ == "__main__":
       df_fold = df_fold[df_fold['fold']==fold].reset_index(drop=True)
       df_fold['abse'] = resume['abse']
       df_fold['rmse'] = resume['rmse']
+      df_fold['nmae'] = resume['nmae']
       for i in range(1,6): df_fold[f'dist{i}'] = resume[f'dist{i}']
       df_fold['array_name'] = array_name
       df_omega = pd.DataFrame(resume['omega'])

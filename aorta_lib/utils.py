@@ -869,3 +869,24 @@ def smooth_bou(bou_, surface, cutoff=0.4):
 
 
 
+from scipy.stats import binned_statistic_2d
+from scipy.stats import binned_statistic
+
+def binned_stat(x, values, nbins, y=None):
+
+    if y is None:
+        bin_means, bin_edges, binnumber = binned_statistic(x, values, statistic='mean', bins=nbins)
+        bin_stds, _, _ = binned_statistic(x, values, statistic='std', bins=nbins)
+        bin_center = (bin_edges[:-1] + bin_edges[1:]) / 2
+        return bin_center, bin_means, bin_stds, binnumber-1
+    else:
+        bin_means, bin_edgesx, bin_edgesy, binnumber = binned_statistic_2d(x,y,values, statistic='mean', bins=nbins)
+        bin_stds, _, _, _ = binned_statistic_2d(x,y,values, statistic='mean', bins=nbins)
+        bin_centerx = (bin_edgesx[:-1] + bin_edgesx[1:]) / 2
+        bin_centery = (bin_edgesy[:-1] + bin_edgesy[1:]) / 2
+        return bin_centerx, bin_centery, bin_means, bin_stds, binnumber-1
+
+
+
+
+

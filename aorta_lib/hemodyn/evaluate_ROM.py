@@ -23,9 +23,9 @@ array_names = [
     #'p_sis'
 ]
 
-model_path = 'odir/hemo_interpolators_gaus_reg_pca_new.npy'
+model_path = 'odir_noLATIN1/hemo_interpolators_gaus_reg_pca_new.npy'
 dataRoot = '../../examples/alignedDatasetBiomarkers_new/'
-dataset_path = "datasetROM_new.json"
+dataset_path = "datasetROM_new_noLATIN1.json"
 
 # open post-processed simulation dataset
 datadict = data.read_datalist(dataset_path, folds=range(5),
@@ -36,7 +36,7 @@ models = np.load(model_path, allow_pickle=True)[()]
 interpDict = models['reg']
 pcaDict = models['pca']
 
-odir = "prova_odir2"
+odir = "odir_noLATIN1_evaluate"
 if not osp.isdir(odir):
   os.makedirs(odir)
 

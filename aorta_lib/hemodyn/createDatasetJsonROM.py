@@ -1,4 +1,5 @@
 from aorta_lib.ssm.generateShape import *
+from aorta_lib.hemodyn import data
 import json
 from random import shuffle
 import tqdm
@@ -32,6 +33,7 @@ for ii, path in tqdm.tqdm(enumerate(paths)):
   filename = osp.split(path)[-1]
   tmp["model"] = filename
   name = osp.splitext(filename)[0]
+  if data.get_sample_group(name) == "LATIN1": continue
   tmp["name"] = name
 
   m = pv.read(path)
@@ -54,7 +56,7 @@ for ii, sample in enumerate(datalist):
   sample['fold'] = folds[ii]
 
 # save dataset in json
-with open("datasetROM_new.json", "w") as f:
+with open("datasetROM_new_noLATIN1.json", "w") as f:
   json.dump(datadict, f, indent=2)
 
 

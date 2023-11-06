@@ -229,6 +229,15 @@ def proj_cldata(m, centerlines, use_radius : int):
     return 0
 """
 
+def vmtk_analysis(m):
+    cl = centerline(m, sa=True, resample=1.)
+    #cl.save("cl.vtp")
+    #bif_rs = bif_rs(cl)
+    clipped = branch_clipper(m, cl, clip_value=0.)
+    metrics = branch_metrics(clipped, cl)
+    #metrics = proj_cldata(metrics, cl, 1)
+    return cl, metrics
+
 
 if __name__ == "__main__":
     m = pv.read('../examples/alignedDatasetBiomarkers_new/A2.vtp')
