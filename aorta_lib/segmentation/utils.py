@@ -8,6 +8,7 @@ from matplotlib import rc
 import matplotlib.pyplot as plt
 import scienceplots
 import matplotlib.pyplot as plt 
+import string
 
 from vtk import vtkNIFTIImageReader
 class NIFTIReader(pv.BaseReader):
@@ -23,7 +24,8 @@ plt.rcParams.update({
 cmap = mpl.colormaps.get_cmap("cet_coolwarm")
 
 
-cont_params = dict(linewidth=0.5, alpha=0.6)
+cont_params = dict(linewidth=1.1, alpha=0.6)
+cont_params_pred = cont_params.copy(); cont_params_pred['alpha'] = 0.85
 pad = 10
 length = np.array([200]*2)
 img_dims = np.array([200]*2)
@@ -141,11 +143,11 @@ def plot_segmentation_comparison(ct, pred_surf, origin, n, u, r, ax=None, fig=No
         for cont in seg_contours:
             ax.plot(*(cont.T), color=f'red', zorder=1, **cont_params)
     for cont in pred_contours:
-        ax.plot(*(cont.T), color=f'red', zorder=2, **cont_params, linestyle=(1.5,(5,2)))
+        ax.plot(*(cont.T), color="C0" if label_surf else f'red', zorder=2, **cont_params_pred, linestyle=(1.5,(4,3)))
 
     all_points = []
     if label_surf:
-        contours_available = [pred_contours, label_surf]
+        contours_available = [pred_contours, seg_contours]
     else:
         contours_available = [pred_contours]
     for conts in contours_available:
@@ -167,7 +169,7 @@ def plot_segmentation_comparison(ct, pred_surf, origin, n, u, r, ax=None, fig=No
     ax.axis('off')
     return
 
-def plot_label_with_distance(pred_surf, label_surf=None):
+def plot_label_with_distance(pred_surf, label_surf=None, clim=(-1,1)):
     scale = 4 # to scale the image and increase the final resolution
     camera_dist = 550
     shift_from_sa = 130 #mm # set z coordinate as 120 mm from the sa vessels (max z coord found)
@@ -192,7 +194,30 @@ def plot_label_with_distance(pred_surf, label_surf=None):
     if label_surf is None:
         pl.add_mesh(pred_surf, color='gray')
     else:
-        pl.add_mesh(label_surf, opacity=1, clim=(-1,1), cmap=cmap, scalar_bar_args=scalar_bar_args)
+        pl.add_mesh(label_surf, opacity=1, clim=clim, cmap=cmap, scalar_bar_args=scalar_bar_args)
+    #pl.add_mesh(pred_surf, color='white', opacity=0.4)
+    #pl.add_title('Distance from label to prediction', font_size=6)
+    camera_direction = np.array([1,-0.3,0.1])
+    camera_direction = camera_direction / np.linalg.norm(camera_direction)
+    pl.camera.position = camera_center - camera_direction * camera_dist
+    pl.camera.focal_point = camera_center + camera_direction * camera_dist
+    #pl.show()
+    #pl.close()
+    return pl.screenshot(None, return_img=True)
+
+def plot_pred_and_label_surfaces(pred_surf, label_surf):
+    scale = 4 # to scale the image and increase the final resolution
+    camera_dist = 550
+    shift_from_sa = 130 #mm # set z coordinate as 120 mm from the sa vessels (max z coord found)
+    
+    camera_center = pred_surf.center
+    camera_center[-1] = pred_surf.points[:,-1].max() - shift_from_sa
+    pl = pv.Plotter(window_size=(np.array([350,600])*scale).astype(int), off_screen=True)
+    #pl = pv.Plotter(window_size=(np.array([350,600])*scale).astype(int))
+    pl.reset_camera()
+    pv.set_plot_theme('document')
+    pl.add_mesh(pred_surf, color='red', opacity=0.6)
+    pl.add_mesh(label_surf, opacity=.8, color='#3385ff')
     #pl.add_mesh(pred_surf, color='white', opacity=0.4)
     #pl.add_title('Distance from label to prediction', font_size=6)
     camera_direction = np.array([1,-0.3,-0.5])
@@ -204,7 +229,7 @@ def plot_label_with_distance(pred_surf, label_surf=None):
     return pl.screenshot(None, return_img=True)
 
 
-def plot_seg(image_path, pred_surf, label_surf=None):
+def plot_seg(image_path, pred_surf, label_surf=None, clim=(-1,1), mode='dist'):
     smoothing_factor = 0.5
     
     ct = read_CT(image_path)
@@ -216,17 +241,25 @@ def plot_seg(image_path, pred_surf, label_surf=None):
     r = np.array([1,0,0])
     
     nrows, ncols = 4, 4
-    fig, axs = plt.subplots(ncols=ncols+1, nrows=nrows, figsize=(7.2*0.8,9.7*0.3), dpi=300, width_ratios=[1]*ncols+[2.])
+    #labels = ['(\\textbf{{{}}})'.format(c) for c in string.ascii_lowercase]
+    labels = ['({})'.format(c) for c in string.ascii_lowercase]
+    figure_size = np.array([180,100]) * 0.0393701 # specify in mm and then convert to inches
+    fig, axs = plt.subplots(ncols=ncols+1, nrows=nrows, figsize=figure_size, dpi=300, width_ratios=[1]*ncols+[2.])
     gs = axs[0,-1].get_gridspec()
     for ax in axs[:,-1]:
         ax.remove()
     ax = fig.add_subplot(gs[:,-1])
-    ax.imshow(plot_label_with_distance(pred_surf, label_surf))
+    if mode=='dist':
+        ax.imshow(plot_label_with_distance(pred_surf, label_surf, clim=clim))
+    elif mode=='comp':
+        ax.imshow(plot_pred_and_label_surfaces(pred_surf, label_surf))
+
     ax.axis('off')
     
-    for origin, ax in zip(origins, axs[:,:-1].ravel()):
+    for ii, (origin, ax) in enumerate(zip(origins, axs[:,:-1].ravel())):
         slice_params = dict(origin=origin, n=n, u=u, r=r)
         plot_segmentation_comparison(ct, pred_surf, **slice_params, ax=ax, fig=fig, label_surf=label_surf)
+        ax.text(-0.23,0.85, labels[ii], transform=ax.transAxes, fontsize=7)
     
     #fig.tight_layout()
     fig.subplots_adjust(wspace=0.0)
