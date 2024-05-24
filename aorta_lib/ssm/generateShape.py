@@ -6,13 +6,15 @@ import os.path as osp
 from aorta_lib.ssm import check_intersections
 
 
-SSM_PATH = "SSM_47shapes_relaxed_corrected.npy"
+#SSM_PATH = "SSM_47shapes_relaxed_corrected.npy"
+SSM_PATH = "SSM_47shapes_relaxed_corrected.h5"
 #SSM_PATH = "SSM_47shapes_relaxed_corrected_SparsePCA.npy"
 #SSM_PATH = "SSM_47shapes_raw.h5"
 #SSM_PATH = "SSM_47.h5"
 MAX_DEV = 2.99
 DEV = 0.8 # std della distribuzione da cui estrarre i pesi
 SAVE_DIR = 'SSM_output'
+refModelPath = 'V2_to_V2.vtp'
 
 
 def procrustes(X, Y, scaling=True, reflection='best'):
@@ -201,34 +203,34 @@ def sampleWeightsDistribution(size, std, abs_max):
     return w
 
 
-#def generateAortaPoints(meanShapePoints, pca_variance, pca_basis, w):
-#    points = meanShapePoints + \
-#        np.einsum('i,ijk->jk', w * np.sqrt(pca_variance) , pca_basis)
-#    return points
-
-def generateAortaPoints(SSM, w, refPvModel):
-    w = w[None,:]
-    points = SSM['model'].inverse_transform(w * np.sqrt(SSM['model'].explained_variance_))[0]
-    points = points.reshape(refPvModel.points.shape) * SSM['points_std'] + SSM['points_mean']
+def generateAortaPoints(meanShapePoints, pca_variance, pca_basis, w):
+    points = meanShapePoints + \
+        np.einsum('i,ijk->jk', w * np.sqrt(pca_variance) , pca_basis)
     return points
 
-#def generateAortaCore(pca_basis, pca_variance, meanShape_pv, w):
-#
-#    newModelPoints = generateAortaPoints(
-#        meanShape_pv.points,
-#        pca_variance,
-#        pca_basis,
-#        w)
-#
-#    newModel_pv = pv.PolyData(newModelPoints, meanShape_pv.faces)
-#
-#    return newModel_pv
+#def generateAortaPoints(SSM, w, refPvModel):
+#    w = w[None,:]
+#    points = SSM['model'].inverse_transform(w * np.sqrt(SSM['model'].explained_variance_))[0]
+#    points = points.reshape(refPvModel.points.shape) * SSM['points_std'] + SSM['points_mean']
+#    return points
 
-def generateAortaCore(SSM, w, refPvModel):
-    newModelPoints = generateAortaPoints(SSM, w, refPvModel)
-    newModel = refPvModel.copy()
-    newModel.points = newModelPoints
-    return newModel
+def generateAortaCore(pca_basis, pca_variance, meanShape_pv, w):
+
+    newModelPoints = generateAortaPoints(
+        meanShape_pv.points,
+        pca_variance,
+        pca_basis,
+        w)
+
+    newModel_pv = pv.PolyData(newModelPoints, meanShape_pv.faces)
+
+    return newModel_pv
+
+#def generateAortaCore(SSM, w, refPvModel):
+#    newModelPoints = generateAortaPoints(SSM, w, refPvModel)
+#    newModel = refPvModel.copy()
+#    newModel.points = newModelPoints
+#    return newModel
 
 
 #def reduceShapeCore(shape_pv, pca_basis, meanShape_pv, pca_variance):
@@ -284,7 +286,6 @@ def compute_output_filename():
 
 if __name__ == '__main__':
 
-    tot_aortas = 205
     filename = SSM_PATH
 
     meanShape_pv, pca_basis, pca_variance = load_SSM_h5(filename, refModelPath)
@@ -335,27 +336,10 @@ if __name__ == '__main__':
             print(f"SELF_INTERSECTIONS: {inters}")
         return newModel_pv
 
-    ## ## current_num_aortas = get_existent_output_shapes_numbered()[-1]
-    ## ## print(f"Current number of aortas {current_num_aortas}")
-    ## ## for kk in range(current_num_aortas, tot_aortas):
-    ## ##     m = generateAorta()
-    ## ##     name = compute_output_filename()
-    ## ##     filename = osp.join(SAVE_DIR, name + '.vtp')
-    ## ##     m.save(filename)
-
-    ## ## ws = []
-    ## ## for ii in range(15):
-    ## ##     for coeff in [-3, -2, -1, 0, 1, 2, 3]:
-    ## ##         w = np.zeros(pca_basis.shape[0])
-    ## ##         w[ii] = coeff
-    ## ##         ws.append(w)
-    ## ## ws = np.array(ws)
-    ## ## ws = np.unique(ws, axis=0)
-
     import scipy.stats
     ndim = 4
     sampler = scipy.stats.qmc.LatinHypercube(ndim, centered=True)
-    n = 120
+    n = 5
     bound = 3 # standard deviations
     ws = (sampler.random(n) - 0.5 - 1/(2*n) ) * 2 * bound
     print(ws)
