@@ -126,13 +126,13 @@ def create_pv_meshes(
 
     for dec in decimate_values[::-1]:
         # target meshes creation
-        clus = pyacvd.Clustering(trg_meshes_pv[-1])
+        clus = pyacvd.Clustering(trg_meshes_pv[-1].copy())
         clus.subdivide(1)
         clus.cluster(dec)
         trg_meshes_pv.insert(0, clus.create_mesh())
 
         # source meshes creation
-        clus = pyacvd.Clustering(src_meshes_pv[-1])
+        clus = pyacvd.Clustering(src_meshes_pv[-1].copy())
         clus.subdivide(1)
         clus.cluster(dec)
         src_meshes_pv.insert(0, clus.create_mesh())
