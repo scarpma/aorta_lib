@@ -20,15 +20,13 @@ import pytorch3d
 import pyvista as pv
 import pyacvd
 
-import mesh_ops
-import optimizers_gpu_cg as optimizers_cg
-import optimizers_cpu_direct as optimizers_direct
-
-import meshIO
-import plotter_lib
-import loss as loss_lib
-
-import ICP
+from aorta_lib.ssm import mesh_ops
+from aorta_lib.ssm import optimizers_gpu_cg as optimizers_cg
+from aorta_lib.ssm import optimizers_cpu_direct as optimizers_direct
+from aorta_lib.ssm import meshIO
+from aorta_lib.ssm import plotter_lib
+from aorta_lib.ssm import loss as loss_lib
+from aorta_lib.ssm import ICP
 
 from tqdm import tqdm
 import time

@@ -3,6 +3,7 @@ import torch
 import pytorch3d
 import pyvista as pv
 import pymeshlab as ml
+import pyacvd
 
 from pytorch3d.structures import Meshes
 
@@ -111,6 +112,7 @@ def discrete_dirichlet_energy(meshes):
 def upsample_morph(origCoarseMesh, newCoarseMesh, fineMesh):
     fineMeshTemp = fineMesh.copy()
     origCoarseMeshTemp = origCoarseMesh.copy()
+    origCoarseMeshTemp.clear_data()
     newCoarseMeshTemp = newCoarseMesh.copy()
 
     #radius = origCoarseMeshTemp.points.ptp() * 0.007
@@ -321,5 +323,36 @@ def remesh(m, target_edge_len):
   #mesh_metrics(m)
   return m
 
+def remesh_with_n_points(m, n):
+  clus = pyacvd.Clustering(m.copy())
+  clus.subdivide(1)
+  clus.cluster(n)
+  m_ = clus.create_mesh()
+  return m_
 
+def interpolate_with_nearest_neighbour(m_, target_, array_name, cell_data):
+  """
+  m_ : mesh's points onto which the array will be interpolated
+  target_ : mesh from which the array will be read
+  
+  ## note ##:
+  Source array can be defined either on points or cells of <target_>.
+  Then, it will be interpolated on m_'s points.
+  """
+  target = target_.copy()
+  arr = target[array_name].copy()
+  target.clear_data()
+  if cell_data:
+    target = pv.PolyData(target.cell_centers())
+  target[array_name] = arr
+  m = m_.copy()
+  m = m.interpolate(target, strategy='closest_point', n_points=1, pass_cell_data=False)
+  m[array_name] = m[array_name].astype(target[array_name].dtype)
+  return np.array(m[array_name].copy())
 
+def get_chambers_idxs(m):
+  tags = np.unique(m['GroupIds'])
+  idxs = []
+  for tag in tags:
+    idxs.append(np.where(m['GroupIds']==tag)[0])
+  return idxs

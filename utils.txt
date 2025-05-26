@@ -1,1 +1,17 @@
 export PYTHONPATH=${PYTHONPATH}:${HOME}/Martino/aorta_lib/
+
+# installation on astra1
+conda  activate
+conda env list
+conda create -n pytorch3d python=3.9
+conda activate pytorch3d
+conda install pytorch=1.13.0 torchvision pytorch-cuda=11.6 -c pytorch -c nvidia
+conda install -c iopath iopath
+conda install numpy matplotlib colorcet openpyxl seaborn
+pip install pyvista vtk scienceplots pyacvd trimesh pymeshlab
+pip install -f --no-index --no-cache-dir pytorch3d -f https://dl.fbaipublicfiles.com/pytorch3d/packaging/wheels/py39_cu116_pyt1130/download.html
+pip install meshio
+
+
+# test to see if it works
+# cd aorta_lib/ssm/ && CUDA_VISIBLE_DEVICES=3 python reg.py -s V2_to_V2.vtp -t V2_to_V2.vtp -pp 0

@@ -11,7 +11,7 @@ import torch
 from torch.optim import Optimizer
 import math
 
-import mesh_ops
+from aorta_lib.ssm import mesh_ops
 
 class precondition_grad():
     """
