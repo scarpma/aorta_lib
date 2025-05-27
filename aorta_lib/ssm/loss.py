@@ -3,10 +3,16 @@ from pytorch3d.loss import chamfer_distance
 from aorta_lib.ssm.myChamfer import chamfer_distance_nonSym
 
 class Loss_fn_bou_match():
-    def __init__(self, trg_mesh, src_bou_idxs_=None, trg_bou_idxs_=None, loss_weights=None):
+    def __init__(self, trg_mesh, src_bou_idxs_=None, trg_bou_idxs_=None, loss_weights=None,
+                 single_directional=False):
 
         self.trg_points = trg_mesh.points_packed().unsqueeze(0)
         self.loss_weights = loss_weights
+        if isinstance(single_directional, list):
+            self.single_directional = single_directional
+        else:
+            self.single_directional = [single_directional]*len(loss_weights)
+
 
         if src_bou_idxs_ is None:
             self.bou = False
@@ -27,7 +33,8 @@ class Loss_fn_bou_match():
         src_points = deformed_mesh.points_packed().unsqueeze(0)
         
         if compute_whole_loss:
-            loss_chamfer, _ = chamfer_distance(self.trg_points, src_points)
+            #loss_chamfer = chamfer_distance(src_points, self.trg_points, single_directional=self.single_directional[0])[0]
+            loss_chamfer = chamfer_distance(self.trg_points, src_points, single_directional=self.single_directional[0])[0]
 
         if not self.bou:
             return loss_chamfer
@@ -39,7 +46,8 @@ class Loss_fn_bou_match():
         bou_losses = []
         for i in range(len(self.src_bou_idxs)):
             #print(f'bou num: {i} computing chamfer')
-            bou_losses.append(chamfer_distance(self.trg_bou_points[i], src_bou_points[i])[0])
+            #bou_losses.append(chamfer_distance(src_bou_points[i], self.trg_bou_points[i], single_directional=self.single_directional[i])[0])
+            bou_losses.append(chamfer_distance(self.trg_bou_points[i], src_bou_points[i], single_directional=self.single_directional[i])[0])
 
         # mesh laplacian smoothing
         #loss_laplacian = mesh_ops.discrete_dirichlet_energy(src_mesh)

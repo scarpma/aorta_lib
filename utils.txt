@@ -15,3 +15,16 @@ pip install meshio
 
 # test to see if it works
 # cd aorta_lib/ssm/ && CUDA_VISIBLE_DEVICES=3 python reg.py -s V2_to_V2.vtp -t V2_to_V2.vtp -pp 0
+
+
+
+
+
+
+
+
+# prova con pytorch last version, python 3.12
+conda create -n pytorch3d_2 python=3.9
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+pip install --extra-index-url https://miropsota.github.io/torch_packages_builder pytorch3d==0.7.8+pt2.7.0cu128
+pip install numpy matplotlib colorcet openpyxl seaborn pyvista vtk scienceplots pyacvd trimesh pymeshlab meshio scipy
