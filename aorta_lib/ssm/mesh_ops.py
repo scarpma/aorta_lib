@@ -116,7 +116,7 @@ def upsample_morph(origCoarseMesh, newCoarseMesh, fineMesh):
     newCoarseMeshTemp = newCoarseMesh.copy()
 
     #radius = origCoarseMeshTemp.points.ptp() * 0.007
-    radius = 3.
+    radius = 3./5.
     disp = newCoarseMeshTemp.points - origCoarseMeshTemp.points
     origCoarseMeshTemp['disp'] = disp
     fineMeshTemp = fineMeshTemp.interpolate(origCoarseMeshTemp, radius=radius)
