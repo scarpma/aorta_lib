@@ -350,7 +350,7 @@ def interpolate_with_nearest_neighbour(m_, target_, array_name, cell_data):
   m[array_name] = m[array_name].astype(target[array_name].dtype)
   return np.array(m[array_name].copy())
 
-def get_chambers_idxs(m, tag_name):
+def get_chambers_idxs(m, tag_name='GroupIds'):
   tags = np.unique(m[tag_name])
   idxs = []
   for tag in tags:
