@@ -340,19 +340,22 @@ def interpolate_with_nearest_neighbour(m_, target_, array_name, cell_data):
   Then, it will be interpolated on m_'s points.
   """
   target = target_.copy()
-  arr = target[array_name].copy()
-  target.clear_data()
   if cell_data:
+    arr = target.cell_data[array_name].copy()
     target = pv.PolyData(target.cell_centers())
+  else:
+    arr = target.point_data[array_name].copy()
+    target = pv.PolyData(target)
+  target.clear_data()
   target[array_name] = arr
   m = m_.copy()
   m = m.interpolate(target, strategy='closest_point', n_points=1, pass_cell_data=False)
   m[array_name] = m[array_name].astype(target[array_name].dtype)
-  return np.array(m[array_name].copy())
+  return np.array(m.point_data[array_name].copy())
 
 def get_chambers_idxs(m, tag_name='GroupIds'):
-  tags = np.unique(m[tag_name])
+  tags = np.unique(m.point_data[tag_name])
   idxs = []
   for tag in tags:
-    idxs.append(np.where(m[tag_name]==tag)[0])
+    idxs.append(np.where(m.point_data[tag_name]==tag)[0])
   return idxs
