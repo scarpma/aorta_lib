@@ -8,6 +8,7 @@ import pyacvd
 from pytorch3d.structures import Meshes
 
 import scipy.sparse as ssparse
+from scipy.spatial import KDTree, cKDTree
 
 def laplacian_numpy(verts, edges):
     """
@@ -352,6 +353,89 @@ def interpolate_with_nearest_neighbour(m_, target_, array_name, cell_data):
   m = m.interpolate(target, strategy='closest_point', n_points=1, pass_cell_data=False)
   m[array_name] = m[array_name].astype(target[array_name].dtype)
   return np.array(m.point_data[array_name].copy())
+
+def interpolate_with_normal_constraint(
+  m_,
+  target_,
+  array_name,
+  cell_data,
+  alpha=5.0,
+  k=20,
+):
+  """
+  Transfer a scalar/label array from target_ onto the points of m_
+  using a distance + normal mismatch score.
+  m_ : Mesh whose points will receive the transferred array.
+  target_ : Mesh from which the array is read.
+  cell_data : If True, read array from target_ cell_data and use target cell centers. If False, read array from target_.point_data and use target points.
+  alpha : Weight for the normal mismatch penalty:
+          score = distance + alpha * (1 - dot(n_target, n_source))
+  k : Number of nearest spatial candidates to consider before reranking
+  Returns: Array transferred onto m_.points
+  """
+  m = m_.copy()
+  target = target_.copy()
+  # --- build source support points and source normals ---
+  if cell_data:
+    source_array = target.cell_data[array_name].copy()
+    centers_mesh = target.cell_centers()
+    source_points = centers_mesh.points
+    # cell normals
+    target = target.compute_normals(
+      cell_normals=True,
+      point_normals=False,
+      inplace=False,
+      auto_orient_normals=False,
+      consistent_normals=False,
+      split_vertices=False)
+    source_normals = target.cell_data["Normals"]
+  else:
+    source_array = target.point_data[array_name].copy()
+    source_points = target.points
+    # point normals
+    target = target.compute_normals(
+      cell_normals=False,
+      point_normals=True,
+      inplace=False,
+      auto_orient_normals=False,
+      consistent_normals=False,
+      split_vertices=False)
+    source_normals = target.point_data["Normals"]
+
+  # --- target points and target normals ---
+  query_points = m.points
+
+  m = m.compute_normals(
+    cell_normals=False,
+    point_normals=True,
+    inplace=False,
+    auto_orient_normals=False,
+    consistent_normals=False,
+    split_vertices=False,
+  )
+  query_normals = m.point_data["Normals"]
+
+  # --- spatial search ---
+  tree = cKDTree(source_points)
+  dists, idxs = tree.query(query_points, k=k)
+  alpha = alpha * dists.std(1).mean() # average std between dists across k neighs
+  # Ensure 2D shape even when k == 1
+  if k == 1:
+    dists = dists[:, None]
+    idxs = idxs[:, None]
+
+  # put cosine into score function
+  n_s = source_normals[idxs]
+  n_t = query_normals[:, None, :]
+  dots = np.sum(n_s * n_t, axis=2)
+  dots = np.clip(dots, -1.0, 1.0)
+
+  scores = dists + alpha * (1.0 - dots)
+
+  best_idx_local = np.argmin(scores, axis=1)
+  chosen = idxs[np.arange(len(idxs)), best_idx_local]
+  out = source_array[chosen]
+  return out.astype(source_array.dtype)
 
 def get_chambers_idxs(m, tag_name='GroupIds'):
   tags = np.unique(m.point_data[tag_name])
